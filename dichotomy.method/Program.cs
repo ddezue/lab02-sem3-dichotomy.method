@@ -1,16 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using dichotomy.method;
+using System;
 using System.Windows.Forms;
 
-namespace dichotomy.method
+namespace DichotomyApp
 {
-  internal static class Program
+  static class Program
   {
-    /// <summary>
-    /// Главная точка входа для приложения.
-    /// </summary>
     [STAThread]
     static void Main()
     {
