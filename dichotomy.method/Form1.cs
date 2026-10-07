@@ -12,6 +12,8 @@ namespace DichotomyApp
     private FormsPlot _formsPlot;
     private Label _labelResult;
     private MenuStrip _menuStrip;
+    private Label _helpIcon;
+    private ToolTip _formulaToolTip;
     private System.Windows.Forms.Timer _autoCalcTimer;
 
     private double _leftBound, _rightBound, _precision;
@@ -36,100 +38,125 @@ namespace DichotomyApp
       this.Text = "Метод дихотомии";
       this.Width = 1200;
       this.Height = 720;
-      this.MinimumSize = new Size(900, 600);
+      this.MinimumSize = new Size(950, 620);
       this.StartPosition = FormStartPosition.CenterScreen;
-      this.Font = new Font("Arial", 9);
+      this.Font = new Font("Segoe UI", 9);
 
+      // ===== Меню =====
       _menuStrip = new MenuStrip();
       var calculateItem = new ToolStripMenuItem("Рассчитать");
       var clearItem = new ToolStripMenuItem("Очистить");
-      var exitItem = new ToolStripMenuItem("Выход");
 
       calculateItem.Click += (sender, args) => Calculate();
       clearItem.Click += (sender, args) => ClearAll();
-      exitItem.Click += (sender, args) => this.Close();
 
       _menuStrip.Items.Add(calculateItem);
       _menuStrip.Items.Add(clearItem);
-      _menuStrip.Items.Add(exitItem);
+
       this.MainMenuStrip = _menuStrip;
       this.Controls.Add(_menuStrip);
 
-      // ===== Корневой layout: 2 колонки =====
+      // ===== Корневой layout =====
       var rootLayout = new TableLayoutPanel
       {
         Dock = DockStyle.Fill,
         ColumnCount = 2,
         RowCount = 1,
-        Padding = new Padding(10)
+        Padding = new Padding(14)
       };
       rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 420));
       rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
       this.Controls.Add(rootLayout);
       rootLayout.BringToFront();
 
-      // ===== ЛЕВАЯ ПАНЕЛЬ: ввод =====
+      // ===== ЛЕВАЯ ПАНЕЛЬ =====
       var leftPanel = new TableLayoutPanel
       {
         Dock = DockStyle.Fill,
-        ColumnCount = 2,
+        ColumnCount = 3,
         RowCount = 7,
-        Padding = new Padding(5)
+        Padding = new Padding(0)
       };
-      leftPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+      leftPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
       leftPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+      leftPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 34));
 
-      for (int rowIndex = 0; rowIndex < 4; ++rowIndex)
-        leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
-
-      leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 44));
-      leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 110));
+      leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+      leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+      leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+      leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
+      leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
+      leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 140));
       leftPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
 
+      // a
       leftPanel.Controls.Add(MakeLabel("a ="), 0, 0);
       _textBoxA = MakeTextBox();
       leftPanel.Controls.Add(_textBoxA, 1, 0);
+      leftPanel.SetColumnSpan(_textBoxA, 2);
 
+      // b
       leftPanel.Controls.Add(MakeLabel("b ="), 0, 1);
       _textBoxB = MakeTextBox();
       leftPanel.Controls.Add(_textBoxB, 1, 1);
+      leftPanel.SetColumnSpan(_textBoxB, 2);
 
+      // e
       leftPanel.Controls.Add(MakeLabel("e ="), 0, 2);
       _textBoxE = MakeTextBox();
       _textBoxE.Text = "0,0001";
       leftPanel.Controls.Add(_textBoxE, 1, 2);
+      leftPanel.SetColumnSpan(_textBoxE, 2);
 
+      // f(x) + "?"
       leftPanel.Controls.Add(MakeLabel("f(x) ="), 0, 3);
       _textBoxFormula = MakeTextBox();
       _textBoxFormula.Text = "x^2 + 2*x - 6";
       leftPanel.Controls.Add(_textBoxFormula, 1, 3);
 
-      var hintLabel = new Label
+      _helpIcon = new Label
       {
-        Text = "Поддерживается: + − * / ^ ( ), sin cos tan exp ln log sqrt abs, pi, e",
+        Text = "?",
         Dock = DockStyle.Fill,
-        ForeColor = Color.Gray,
-        Font = new Font("Arial", 8, FontStyle.Italic)
+        TextAlign = ContentAlignment.MiddleCenter,
+        Font = new Font("Segoe UI", 11, FontStyle.Bold),
+        ForeColor = Color.White,
+        BackColor = Color.SteelBlue,
+        Cursor = Cursors.Help,
+        Margin = new Padding(4, 6, 0, 6)
       };
-      leftPanel.Controls.Add(hintLabel, 0, 4);
-      leftPanel.SetColumnSpan(hintLabel, 2);
+      leftPanel.Controls.Add(_helpIcon, 2, 3);
 
+      // Результат
       _labelResult = new Label
       {
         Dock = DockStyle.Fill,
         Font = new Font("Consolas", 10, FontStyle.Bold),
         ForeColor = Color.DarkBlue,
         Text = "Введите данные и нажмите «Рассчитать»",
-        Padding = new Padding(0, 10, 0, 0)
+        Padding = new Padding(0, 12, 0, 0),
+        TextAlign = ContentAlignment.TopLeft
       };
       leftPanel.Controls.Add(_labelResult, 0, 5);
-      leftPanel.SetColumnSpan(_labelResult, 2);
+      leftPanel.SetColumnSpan(_labelResult, 3);
 
       rootLayout.Controls.Add(leftPanel, 0, 0);
 
-      // ===== ПРАВАЯ ПАНЕЛЬ: ScottPlot =====
+      // ===== Правая панель =====
       _formsPlot = new FormsPlot { Dock = DockStyle.Fill };
       rootLayout.Controls.Add(_formsPlot, 1, 0);
+
+      // ===== ToolTip при наведении на "?" =====
+      _formulaToolTip = new ToolTip
+      {
+        AutoPopDelay = 60000,
+        InitialDelay = 150,
+        ReshowDelay = 50,
+        ShowAlways = true,
+        IsBalloon = false,
+        ToolTipTitle = "Поддерживаемые формулы"
+      };
+      _formulaToolTip.SetToolTip(_helpIcon, BuildFormulaTooltipText());
     }
 
     private Label MakeLabel(string caption) =>
@@ -138,7 +165,8 @@ namespace DichotomyApp
           Text = caption,
           Dock = DockStyle.Fill,
           TextAlign = ContentAlignment.MiddleRight,
-          Font = new Font("Arial", 10, FontStyle.Bold)
+          Font = new Font("Segoe UI", 10, FontStyle.Bold),
+          Padding = new Padding(0, 0, 8, 0)
         };
 
     private TextBox MakeTextBox() =>
@@ -146,8 +174,32 @@ namespace DichotomyApp
         {
           Dock = DockStyle.Fill,
           Font = new Font("Consolas", 11),
-          Margin = new Padding(3, 5, 3, 5)
+          Margin = new Padding(0, 7, 0, 7)
         };
+
+    private static string BuildFormulaTooltipText()
+    {
+      return
+          "ОПЕРАТОРЫ:\r\n" +
+          "  + - * / ^  и  ( )\r\n" +
+          "\r\n" +
+          "ФУНКЦИИ:\r\n" +
+          "  sin(x)   cos(x)   tan(x)\r\n" +
+          "  exp(x)   ln(x)    log(x)\r\n" +
+          "  sqrt(x)  abs(x)\r\n" +
+          "\r\n" +
+          "КОНСТАНТЫ:\r\n" +
+          "  pi ≈ 3.14159    e ≈ 2.71828\r\n" +
+          "\r\n" +
+          "ПРИМЕРЫ:\r\n" +
+          "  x^2 + 2*x - 6\r\n" +
+          "  sin(x) - 0.5\r\n" +
+          "  sqrt(x) - 1\r\n" +
+          "  ln(x) - 1\r\n" +
+          "\r\n" +
+          "Десятичный разделитель: точка или запятая.\r\n" +
+          "Тригонометрия — в радианах.";
+    }
 
     private void ScheduleAutoCalculate()
     {
@@ -281,7 +333,7 @@ namespace DichotomyApp
 
       _labelResult.ForeColor = Color.DarkGreen;
       _labelResult.Text = string.Format(CultureInfo.InvariantCulture,
-          "Корень: x = {0:F6}\r\nf(x) = {1:E3}\r\nИтераций: {2}\r\ne = {3}",
+          "Корень:   x = {0:F6}\r\nf(x)   = {1:F8}\r\nИтераций: {2}\r\ne      = {3}",
           _dichotomyResult.Root,
           _dichotomyResult.FunctionValueAtRoot,
           _dichotomyResult.Iterations,
@@ -297,10 +349,6 @@ namespace DichotomyApp
       return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
     }
 
-    /// <summary>
-    /// Строит график через ScottPlot: кривая f(x), границы [a;b],
-    /// найденный интервал и красная точка корня.
-    /// </summary>
     private void UpdatePlot()
     {
       _formsPlot.Plot.Clear();
@@ -312,7 +360,6 @@ namespace DichotomyApp
         return;
       }
 
-      // --- 1. Кривая f(x) ---
       double margin = (_rightBound - _leftBound) * 0.5;
       if (margin < 1e-9) margin = 1.0;
 
@@ -336,7 +383,6 @@ namespace DichotomyApp
       scatter.LineWidth = 2;
       scatter.MarkerSize = 0;
 
-      // --- 2. Границы [a;b] ---
       var leftLine = _formsPlot.Plot.Add.VerticalLine(_leftBound);
       leftLine.Color = ScottPlot.Color.FromSDColor(System.Drawing.Color.Orange).WithAlpha(0.6);
       leftLine.LinePattern = ScottPlot.LinePattern.Dashed;
@@ -345,7 +391,6 @@ namespace DichotomyApp
       rightLine.Color = ScottPlot.Color.FromSDColor(System.Drawing.Color.Orange).WithAlpha(0.6);
       rightLine.LinePattern = ScottPlot.LinePattern.Dashed;
 
-      // --- 3. Найденный интервал ---
       if (_dichotomyResult != null
           && _dichotomyResult.FoundRight > _dichotomyResult.FoundLeft
           && _dichotomyResult.FoundRight - _dichotomyResult.FoundLeft < (_rightBound - _leftBound) * 0.9)
@@ -356,7 +401,6 @@ namespace DichotomyApp
         foundRange.FillColor = ScottPlot.Color.FromSDColor(System.Drawing.Color.Green).WithAlpha(0.2);
       }
 
-      // --- 4. Точка корня ---
       if (_dichotomyResult != null && _dichotomyResult.Success)
       {
         var rootMarker = _formsPlot.Plot.Add.Marker(
