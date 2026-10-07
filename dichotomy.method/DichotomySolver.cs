@@ -85,8 +85,6 @@ namespace DichotomyApp
         {
           result.HasDiscontinuity = true;
 
-          // После разрыва старое значение нельзя использовать
-          // для определения смены знака.
           previousX = currentX;
           previousValue = double.NaN;
 
@@ -96,7 +94,6 @@ namespace DichotomyApp
         // Текущая точка является корнем
         if (Math.Abs(currentValue) < 1e-15)
         {
-          // Не добавляем повторно тот же самый корень
           bool alreadyFound = false;
 
           foreach (var interval in signChanges)
@@ -117,7 +114,6 @@ namespace DichotomyApp
         else if (!double.IsNaN(previousValue)
                  && !double.IsInfinity(previousValue))
         {
-          // Обычная смена знака
           if (previousValue * currentValue < 0)
           {
             signChanges.Add((previousX, currentX));
@@ -144,8 +140,6 @@ namespace DichotomyApp
         return result;
       }
 
-      // По условию должен быть выбран интервал изоляции
-      // с единственным корнем.
       if (signChanges.Count > 1)
       {
         result.Error =
@@ -258,48 +252,55 @@ namespace DichotomyApp
       result.Iterations = iterationCount;
 
       // ===== 3. Проверка результата =====
-      double scale =
-          Math.Max(
-              Math.Abs(leftValue),
-              Math.Abs(functionValueAtRoot));
-
-      double firstLeftValue;
-      double firstRightValue;
-
-      if (TryEvaluate(
-              function,
-              signChanges[0].l,
-              out firstLeftValue)
-          &&
-          TryEvaluate(
-              function,
-              signChanges[0].r,
-              out firstRightValue))
-      {
-        scale = Math.Max(
-            Math.Abs(firstLeftValue),
-            Math.Abs(firstRightValue));
-      }
-
-      if (double.IsNaN(scale)
-          || double.IsInfinity(scale)
-          || scale < 1e-12)
-      {
-        scale = 1.0;
-      }
-
-      double absoluteRootValue =
-          Math.Abs(functionValueAtRoot);
+      //
+      // Раньше здесь было `|f(root)| > scale * 1e-3`, где
+      // scale = max(|f(a)|, |f(b)|). Это ложно отбраковывало
+      // легитимные корни полиномов с заметной производной:
+      // после сходимости по x на eps расстояние до истинного
+      // корня <= eps/2, а значит |f(root)| <= |f'| * eps / 2,
+      // что для f'(root)=4 и eps=1e-4 даёт 2e-4 — заведомо
+      // больше старого порога (2e-5).
+      //
+      // Теперь оцениваем |f'| по секущей через концы интервала
+      // изоляции и разрешаем |f(root)| вплоть до |f'| * eps
+      // с 10-кратным запасом.
+      double absoluteRootValue = Math.Abs(functionValueAtRoot);
 
       if (double.IsNaN(absoluteRootValue)
-          || double.IsInfinity(absoluteRootValue)
-          || absoluteRootValue > scale * 1e-3)
+          || double.IsInfinity(absoluteRootValue))
       {
         result.Success = false;
         result.HasDiscontinuity = true;
         result.Error =
             "На интервале найден разрыв (полюс), а не корень функции. f(x) не обращается в ноль.";
         return result;
+      }
+
+      double firstLeftValue;
+      double firstRightValue;
+
+      if (TryEvaluate(function, signChanges[0].l, out firstLeftValue) &&
+          TryEvaluate(function, signChanges[0].r, out firstRightValue))
+      {
+        double intervalWidth = signChanges[0].r - signChanges[0].l;
+        if (intervalWidth < 1e-15) intervalWidth = 1e-15;
+
+        double derivativeEstimate =
+            Math.Abs(firstRightValue - firstLeftValue) / intervalWidth;
+
+        double expectedMaxRootValue = derivativeEstimate * eps * 10.0;
+
+        if (expectedMaxRootValue < 1e-12)
+          expectedMaxRootValue = 1e-12;
+
+        if (absoluteRootValue > expectedMaxRootValue)
+        {
+          result.Success = false;
+          result.HasDiscontinuity = true;
+          result.Error =
+              "На интервале найден разрыв (полюс), а не корень функции. f(x) не обращается в ноль.";
+          return result;
+        }
       }
 
       result.Success = true;
