@@ -8,15 +8,33 @@ namespace DichotomyApp
 {
   public class Form1 : Form
   {
-    private TextBox _textBoxA, _textBoxB, _textBoxE, _textBoxFormula;
+    private TextBox _textBoxA;
+    private TextBox _textBoxB;
+    private TextBox _textBoxE;
+    private TextBox _textBoxFormula;
+
     private FormsPlot _formsPlot;
+
     private Label _labelResult;
+
+    private Label _valueRoot;
+    private Label _valueFunction;
+    private Label _valueIterations;
+    private Label _valuePrecision;
+
+    private TableLayoutPanel _resultTable;
+    private TableLayoutPanel _leftPanel;
+
     private MenuStrip _menuStrip;
     private Label _helpIcon;
     private ToolTip _formulaToolTip;
+
     private System.Windows.Forms.Timer _autoCalcTimer;
 
-    private double _leftBound, _rightBound, _precision;
+    private double _leftBound;
+    private double _rightBound;
+    private double _precision;
+
     private FunctionParser _parser;
     private DichotomyResult _dichotomyResult;
 
@@ -24,158 +42,651 @@ namespace DichotomyApp
     {
       BuildUserInterface();
 
-      _autoCalcTimer = new System.Windows.Forms.Timer { Interval = 250 };
-      _autoCalcTimer.Tick += (sender, args) => { _autoCalcTimer.Stop(); TryAutoCalculate(); };
+      _autoCalcTimer = new System.Windows.Forms.Timer
+      {
+        Interval = 250
+      };
 
-      _textBoxA.TextChanged += (sender, args) => ScheduleAutoCalculate();
-      _textBoxB.TextChanged += (sender, args) => ScheduleAutoCalculate();
-      _textBoxE.TextChanged += (sender, args) => ScheduleAutoCalculate();
-      _textBoxFormula.TextChanged += (sender, args) => ScheduleAutoCalculate();
+      _autoCalcTimer.Tick += (sender, args) =>
+      {
+        _autoCalcTimer.Stop();
+        TryAutoCalculate();
+      };
+
+      _textBoxA.TextChanged += (sender, args) =>
+          ScheduleAutoCalculate();
+
+      _textBoxB.TextChanged += (sender, args) =>
+          ScheduleAutoCalculate();
+
+      _textBoxE.TextChanged += (sender, args) =>
+          ScheduleAutoCalculate();
+
+      _textBoxFormula.TextChanged += (sender, args) =>
+          ScheduleAutoCalculate();
     }
+
+    // ============================================================
+    // ИНТЕРФЕЙС
+    // ============================================================
 
     private void BuildUserInterface()
     {
-      this.Text = "Метод дихотомии";
-      this.Width = 1200;
-      this.Height = 720;
-      this.MinimumSize = new Size(950, 620);
-      this.StartPosition = FormStartPosition.CenterScreen;
-      this.Font = new Font("Segoe UI", 9);
+      Text = "Метод дихотомии";
 
-      // ===== Меню =====
+      Width = 1200;
+      Height = 720;
+
+      MinimumSize = new Size(950, 620);
+
+      StartPosition =
+          FormStartPosition.CenterScreen;
+
+      Font = new Font(
+          "Segoe UI",
+          9F,
+          FontStyle.Regular);
+
+      // ========================================================
+      // MENU STRIP
+      // ========================================================
+
       _menuStrip = new MenuStrip();
-      var calculateItem = new ToolStripMenuItem("Рассчитать");
-      var clearItem = new ToolStripMenuItem("Очистить");
 
-      calculateItem.Click += (sender, args) => Calculate();
-      clearItem.Click += (sender, args) => ClearAll();
+      var calculateItem =
+          new ToolStripMenuItem("Рассчитать");
+
+      var plotItem =
+          new ToolStripMenuItem("Построить график");
+
+      var clearItem =
+          new ToolStripMenuItem("Очистить");
+
+      calculateItem.Click +=
+          (sender, args) => Calculate();
+
+      plotItem.Click +=
+          (sender, args) => BuildGraphOnly();
+
+      clearItem.Click +=
+          (sender, args) => ClearAll();
 
       _menuStrip.Items.Add(calculateItem);
+      _menuStrip.Items.Add(plotItem);
       _menuStrip.Items.Add(clearItem);
 
-      this.MainMenuStrip = _menuStrip;
-      this.Controls.Add(_menuStrip);
+      MainMenuStrip = _menuStrip;
 
-      // ===== Корневой layout =====
-      var rootLayout = new TableLayoutPanel
-      {
-        Dock = DockStyle.Fill,
-        ColumnCount = 2,
-        RowCount = 1,
-        Padding = new Padding(14)
-      };
-      rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 420));
-      rootLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-      this.Controls.Add(rootLayout);
-      rootLayout.BringToFront();
+      Controls.Add(_menuStrip);
 
-      // ===== ЛЕВАЯ ПАНЕЛЬ =====
-      var leftPanel = new TableLayoutPanel
-      {
-        Dock = DockStyle.Fill,
-        ColumnCount = 3,
-        RowCount = 7,
-        Padding = new Padding(0)
-      };
-      leftPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 80));
-      leftPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-      leftPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 34));
+      // ========================================================
+      // ОСНОВНОЙ LAYOUT
+      // ========================================================
 
-      leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-      leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-      leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-      leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 40));
-      leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 20));
-      leftPanel.RowStyles.Add(new RowStyle(SizeType.Absolute, 140));
-      leftPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+      var rootLayout =
+          new TableLayoutPanel
+          {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1,
+            Padding = new Padding(14)
+          };
+
+      rootLayout.ColumnStyles.Add(
+          new ColumnStyle(
+              SizeType.Absolute,
+              450));
+
+      rootLayout.ColumnStyles.Add(
+          new ColumnStyle(
+              SizeType.Percent,
+              100));
+
+      Controls.Add(rootLayout);
+
+      // ========================================================
+      // ЛЕВАЯ ПАНЕЛЬ
+      // ========================================================
+
+      _leftPanel =
+          new TableLayoutPanel
+          {
+            Dock = DockStyle.Fill,
+            ColumnCount = 3,
+            RowCount = 8,
+            Padding = new Padding(0)
+          };
+
+      // Ширина первой колонки достаточная
+      // для "Точность e"
+      _leftPanel.ColumnStyles.Add(
+          new ColumnStyle(
+              SizeType.Absolute,
+              100));
+
+      _leftPanel.ColumnStyles.Add(
+          new ColumnStyle(
+              SizeType.Percent,
+              100));
+
+      _leftPanel.ColumnStyles.Add(
+          new ColumnStyle(
+              SizeType.Absolute,
+              42));
 
       // a
-      leftPanel.Controls.Add(MakeLabel("a ="), 0, 0);
-      _textBoxA = MakeTextBox();
-      leftPanel.Controls.Add(_textBoxA, 1, 0);
-      leftPanel.SetColumnSpan(_textBoxA, 2);
+      _leftPanel.RowStyles.Add(
+          new RowStyle(
+              SizeType.Absolute,
+              40));
 
       // b
-      leftPanel.Controls.Add(MakeLabel("b ="), 0, 1);
-      _textBoxB = MakeTextBox();
-      leftPanel.Controls.Add(_textBoxB, 1, 1);
-      leftPanel.SetColumnSpan(_textBoxB, 2);
+      _leftPanel.RowStyles.Add(
+          new RowStyle(
+              SizeType.Absolute,
+              40));
 
       // e
-      leftPanel.Controls.Add(MakeLabel("e ="), 0, 2);
-      _textBoxE = MakeTextBox();
-      _textBoxE.Text = "0,0001";
-      leftPanel.Controls.Add(_textBoxE, 1, 2);
-      leftPanel.SetColumnSpan(_textBoxE, 2);
+      _leftPanel.RowStyles.Add(
+          new RowStyle(
+              SizeType.Absolute,
+              40));
 
-      // f(x) + "?"
-      leftPanel.Controls.Add(MakeLabel("f(x) ="), 0, 3);
-      _textBoxFormula = MakeTextBox();
-      _textBoxFormula.Text = "x^2 + 2*x - 6";
-      leftPanel.Controls.Add(_textBoxFormula, 1, 3);
+      // f(x)
+      _leftPanel.RowStyles.Add(
+          new RowStyle(
+              SizeType.Absolute,
+              40));
 
-      _helpIcon = new Label
-      {
-        Text = "?",
-        Dock = DockStyle.Fill,
-        TextAlign = ContentAlignment.MiddleCenter,
-        Font = new Font("Segoe UI", 11, FontStyle.Bold),
-        ForeColor = Color.White,
-        BackColor = Color.SteelBlue,
-        Cursor = Cursors.Help,
-        Margin = new Padding(4, 6, 0, 6)
-      };
-      leftPanel.Controls.Add(_helpIcon, 2, 3);
+      // небольшой отступ
+      _leftPanel.RowStyles.Add(
+          new RowStyle(
+              SizeType.Absolute,
+              10));
 
-      // Результат
-      _labelResult = new Label
-      {
-        Dock = DockStyle.Fill,
-        Font = new Font("Consolas", 10, FontStyle.Bold),
-        ForeColor = Color.DarkBlue,
-        Text = "Введите данные и нажмите «Рассчитать»",
-        Padding = new Padding(0, 12, 0, 0),
-        TextAlign = ContentAlignment.TopLeft
-      };
-      leftPanel.Controls.Add(_labelResult, 0, 5);
-      leftPanel.SetColumnSpan(_labelResult, 3);
+      // заголовок
+      _leftPanel.RowStyles.Add(
+          new RowStyle(
+              SizeType.Absolute,
+              32));
 
-      rootLayout.Controls.Add(leftPanel, 0, 0);
+      // результат
+      _leftPanel.RowStyles.Add(
+          new RowStyle(
+              SizeType.Absolute,
+              116));
 
-      // ===== Правая панель =====
-      _formsPlot = new FormsPlot { Dock = DockStyle.Fill };
-      rootLayout.Controls.Add(_formsPlot, 1, 0);
+      // остаток
+      _leftPanel.RowStyles.Add(
+          new RowStyle(
+              SizeType.Percent,
+              100));
 
-      // ===== ToolTip при наведении на "?" =====
-      _formulaToolTip = new ToolTip
-      {
-        AutoPopDelay = 60000,
-        InitialDelay = 150,
-        ReshowDelay = 50,
-        ShowAlways = true,
-        IsBalloon = false,
-        ToolTipTitle = "Поддерживаемые формулы"
-      };
-      _formulaToolTip.SetToolTip(_helpIcon, BuildFormulaTooltipText());
+      // ========================================================
+      // a
+      // ========================================================
+
+      _leftPanel.Controls.Add(
+          MakeLabel("a ="),
+          0,
+          0);
+
+      _textBoxA =
+          MakeTextBox();
+
+      _leftPanel.Controls.Add(
+          _textBoxA,
+          1,
+          0);
+
+      _leftPanel.SetColumnSpan(
+          _textBoxA,
+          2);
+
+      // ========================================================
+      // b
+      // ========================================================
+
+      _leftPanel.Controls.Add(
+          MakeLabel("b ="),
+          0,
+          1);
+
+      _textBoxB =
+          MakeTextBox();
+
+      _leftPanel.Controls.Add(
+          _textBoxB,
+          1,
+          1);
+
+      _leftPanel.SetColumnSpan(
+          _textBoxB,
+          2);
+
+      // ========================================================
+      // e
+      // ========================================================
+
+      _leftPanel.Controls.Add(
+          MakeLabel("e ="),
+          0,
+          2);
+
+      _textBoxE =
+          MakeTextBox();
+
+      _textBoxE.Text =
+          "0,0001";
+
+      _leftPanel.Controls.Add(
+          _textBoxE,
+          1,
+          2);
+
+      _leftPanel.SetColumnSpan(
+          _textBoxE,
+          2);
+
+      // ========================================================
+      // f(x)
+      // ========================================================
+
+      _leftPanel.Controls.Add(
+          MakeLabel("f(x) ="),
+          0,
+          3);
+
+      _textBoxFormula =
+          MakeTextBox();
+
+      _textBoxFormula.Text =
+          "x^2 + 2*x - 6";
+
+      _leftPanel.Controls.Add(
+          _textBoxFormula,
+          1,
+          3);
+
+      // ========================================================
+      // ?
+      // ========================================================
+
+      _helpIcon =
+          new Label
+          {
+            Text = "?",
+
+            Dock = DockStyle.Fill,
+
+            TextAlign =
+                  ContentAlignment.MiddleCenter,
+
+            Font = new Font(
+                  "Segoe UI",
+                  11F,
+                  FontStyle.Bold),
+
+            ForeColor =
+                  Color.White,
+
+            BackColor =
+                  Color.SteelBlue,
+
+            Cursor =
+                  Cursors.Help,
+
+            Margin =
+                  new Padding(
+                      4,
+                      6,
+                      0,
+                      6)
+          };
+
+      _leftPanel.Controls.Add(
+          _helpIcon,
+          2,
+          3);
+
+      // ========================================================
+      // РЕЗУЛЬТАТ
+      // ========================================================
+
+      _labelResult =
+          new Label
+          {
+            Text = "Результат",
+
+            Dock = DockStyle.Fill,
+
+            Font = new Font(
+                  "Segoe UI",
+                  10F,
+                  FontStyle.Bold),
+
+            ForeColor =
+                  Color.DarkGreen,
+
+            TextAlign =
+                  ContentAlignment.MiddleLeft,
+
+            Margin =
+                  new Padding(0)
+          };
+
+      _leftPanel.Controls.Add(
+          _labelResult,
+          0,
+          5);
+
+      _leftPanel.SetColumnSpan(
+          _labelResult,
+          3);
+
+      // ========================================================
+      // ТАБЛИЦА
+      // ========================================================
+
+      _resultTable =
+          CreateResultTable();
+
+      _leftPanel.Controls.Add(
+          _resultTable,
+          0,
+          6);
+
+      _leftPanel.SetColumnSpan(
+          _resultTable,
+          3);
+
+      // ========================================================
+      // ЛЕВАЯ ПАНЕЛЬ
+      // ========================================================
+
+      rootLayout.Controls.Add(
+          _leftPanel,
+          0,
+          0);
+
+      // ========================================================
+      // ГРАФИК
+      // ========================================================
+
+      _formsPlot =
+          new FormsPlot
+          {
+            Dock = DockStyle.Fill
+          };
+
+      rootLayout.Controls.Add(
+          _formsPlot,
+          1,
+          0);
+
+      // ========================================================
+      // TOOLTIP
+      // ========================================================
+
+      _formulaToolTip =
+          new ToolTip
+          {
+            AutoPopDelay = 60000,
+            InitialDelay = 150,
+            ReshowDelay = 50,
+            ShowAlways = true,
+            IsBalloon = false,
+            ToolTipTitle =
+                  "Поддерживаемые формулы"
+          };
+
+      _formulaToolTip.SetToolTip(
+          _helpIcon,
+          BuildFormulaTooltipText());
     }
 
-    private Label MakeLabel(string caption) =>
-        new Label
-        {
-          Text = caption,
-          Dock = DockStyle.Fill,
-          TextAlign = ContentAlignment.MiddleRight,
-          Font = new Font("Segoe UI", 10, FontStyle.Bold),
-          Padding = new Padding(0, 0, 8, 0)
-        };
+    // ============================================================
+    // ТАБЛИЦА РЕЗУЛЬТАТА
+    // ============================================================
 
-    private TextBox MakeTextBox() =>
-        new TextBox
-        {
-          Dock = DockStyle.Fill,
-          Font = new Font("Consolas", 11),
-          Margin = new Padding(0, 7, 0, 7)
-        };
+    private TableLayoutPanel CreateResultTable()
+    {
+      var table =
+          new TableLayoutPanel
+          {
+            Dock = DockStyle.Fill,
+
+            ColumnCount = 2,
+            RowCount = 4,
+
+            Margin =
+                  new Padding(0),
+
+            Padding =
+                  new Padding(0)
+          };
+
+      table.ColumnStyles.Add(
+          new ColumnStyle(
+              SizeType.Absolute,
+              120));
+
+      table.ColumnStyles.Add(
+          new ColumnStyle(
+              SizeType.Percent,
+              100));
+
+      for (int i = 0; i < 4; i++)
+      {
+        table.RowStyles.Add(
+            new RowStyle(
+                SizeType.Absolute,
+                29));
+      }
+
+      // Корень
+      table.Controls.Add(
+          CreateResultNameLabel("Корень"),
+          0,
+          0);
+
+      _valueRoot =
+          CreateResultValueLabel();
+
+      table.Controls.Add(
+          _valueRoot,
+          1,
+          0);
+
+      // f(x)
+      table.Controls.Add(
+          CreateResultNameLabel("f(x)"),
+          0,
+          1);
+
+      _valueFunction =
+          CreateResultValueLabel();
+
+      table.Controls.Add(
+          _valueFunction,
+          1,
+          1);
+
+      // Итерации
+      table.Controls.Add(
+          CreateResultNameLabel("Итераций"),
+          0,
+          2);
+
+      _valueIterations =
+          CreateResultValueLabel();
+
+      table.Controls.Add(
+          _valueIterations,
+          1,
+          2);
+
+      // Точность
+      table.Controls.Add(
+          CreateResultNameLabel("Точность e"),
+          0,
+          3);
+
+      _valuePrecision =
+          CreateResultValueLabel();
+
+      table.Controls.Add(
+          _valuePrecision,
+          1,
+          3);
+
+      return table;
+    }
+
+    private Label CreateResultNameLabel(
+        string text)
+    {
+      return new Label
+      {
+        Text = text,
+
+        Dock = DockStyle.Fill,
+
+        Font = new Font(
+              "Segoe UI",
+              9F,
+              FontStyle.Regular),
+
+        TextAlign =
+              ContentAlignment.MiddleLeft,
+
+        Margin =
+              new Padding(0)
+      };
+    }
+
+    private Label CreateResultValueLabel()
+    {
+      return new Label
+      {
+        Text = "-",
+
+        Dock = DockStyle.Fill,
+
+        Font = new Font(
+              "Segoe UI",
+              9F,
+              FontStyle.Regular),
+
+        TextAlign =
+              ContentAlignment.MiddleLeft,
+
+        Margin =
+              new Padding(0)
+      };
+    }
+
+    // ============================================================
+    // РЕЗУЛЬТАТ
+    // ============================================================
+
+    private void SetResultValues(
+        string root,
+        string functionValue,
+        string iterations,
+        string precision)
+    {
+      _valueRoot.Text = root;
+      _valueFunction.Text = functionValue;
+      _valueIterations.Text = iterations;
+      _valuePrecision.Text = precision;
+    }
+
+    private void ClearResultTable()
+    {
+      SetResultValues(
+          "-",
+          "-",
+          "-",
+          "-");
+    }
+
+    private void ShowResultTable()
+    {
+      _resultTable.Visible = true;
+
+      _leftPanel.RowStyles[6].Height =
+          116;
+    }
+
+    private void HideResultTable()
+    {
+      _resultTable.Visible = false;
+
+      _leftPanel.RowStyles[6].Height =
+          0;
+    }
+
+    // ============================================================
+    // LABEL
+    // ============================================================
+
+    private Label MakeLabel(
+        string caption)
+    {
+      return new Label
+      {
+        Text = caption,
+
+        Dock = DockStyle.Fill,
+
+        TextAlign =
+              ContentAlignment.MiddleRight,
+
+        Font = new Font(
+              "Segoe UI",
+              10F,
+              FontStyle.Bold),
+
+        Padding =
+              new Padding(
+                  0,
+                  0,
+                  8,
+                  0),
+
+        Margin =
+              new Padding(0)
+      };
+    }
+
+    // ============================================================
+    // TEXTBOX
+    // ============================================================
+
+    private TextBox MakeTextBox()
+    {
+      return new TextBox
+      {
+        Dock = DockStyle.Fill,
+
+        Font = new Font(
+              "Segoe UI",
+              10F,
+              FontStyle.Regular),
+
+        Margin =
+              new Padding(
+                  0,
+                  6,
+                  0,
+                  6)
+      };
+    }
+
+    // ============================================================
+    // TOOLTIP
+    // ============================================================
 
     private static string BuildFormulaTooltipText()
     {
@@ -197,9 +708,14 @@ namespace DichotomyApp
           "  sqrt(x) - 1\r\n" +
           "  ln(x) - 1\r\n" +
           "\r\n" +
-          "Десятичный разделитель: точка или запятая.\r\n" +
+          "Десятичный разделитель в формуле: точка.\r\n" +
+          "Для a, b и e можно использовать точку или запятую.\r\n" +
           "Тригонометрия — в радианах.";
     }
+
+    // ============================================================
+    // АВТОРАСЧЁТ
+    // ============================================================
 
     private void ScheduleAutoCalculate()
     {
@@ -207,147 +723,624 @@ namespace DichotomyApp
       _autoCalcTimer.Start();
     }
 
+    // ============================================================
+    // ОШИБКА
+    // ============================================================
+
+    private void ShowError(
+        string message)
+    {
+      _labelResult.ForeColor =
+          Color.DarkRed;
+
+      _labelResult.Text =
+          "Ошибка: " + message;
+
+      ClearResultTable();
+
+      HideResultTable();
+    }
+
+    // ============================================================
+    // ОЧИСТКА
+    // ============================================================
+
     private void ClearAll()
     {
-      _textBoxA.Text = _textBoxB.Text = _textBoxFormula.Text = "";
+      _textBoxA.Text = "";
+      _textBoxB.Text = "";
       _textBoxE.Text = "0,0001";
+      _textBoxFormula.Text = "";
+
       ResetFieldColors();
-      _labelResult.ForeColor = Color.DarkBlue;
-      _labelResult.Text = "Очищено";
+
+      _labelResult.ForeColor =
+          Color.DarkGreen;
+
+      _labelResult.Text =
+          "Результат";
+
+      ClearResultTable();
+      ShowResultTable();
+
       _dichotomyResult = null;
       _parser = null;
+
       _formsPlot.Plot.Clear();
       _formsPlot.Refresh();
     }
 
+    // ============================================================
+    // ЦВЕТА ПОЛЕЙ
+    // ============================================================
+
     private void ResetFieldColors()
     {
-      _textBoxA.BackColor = _textBoxB.BackColor = _textBoxE.BackColor = _textBoxFormula.BackColor = SystemColors.Window;
+      _textBoxA.BackColor =
+          SystemColors.Window;
+
+      _textBoxB.BackColor =
+          SystemColors.Window;
+
+      _textBoxE.BackColor =
+          SystemColors.Window;
+
+      _textBoxFormula.BackColor =
+          SystemColors.Window;
     }
 
-    private void MarkInvalid(TextBox textBox, bool isInvalid)
+    private void MarkInvalid(
+        TextBox textBox,
+        bool isInvalid)
     {
-      textBox.BackColor = isInvalid ? Color.MistyRose : SystemColors.Window;
+      textBox.BackColor =
+          isInvalid
+              ? Color.MistyRose
+              : SystemColors.Window;
     }
+
+    // ============================================================
+    // РАСЧЁТ
+    // ============================================================
 
     private void Calculate()
     {
       ResetFieldColors();
 
-      bool hasInvalidInput = false;
-      if (!TryParseDouble(_textBoxA.Text, out _leftBound)) { MarkInvalid(_textBoxA, true); hasInvalidInput = true; }
-      if (!TryParseDouble(_textBoxB.Text, out _rightBound)) { MarkInvalid(_textBoxB, true); hasInvalidInput = true; }
-      if (!TryParseDouble(_textBoxE.Text, out _precision)) { MarkInvalid(_textBoxE, true); hasInvalidInput = true; }
+      // --------------------------------------------------------
+      // a
+      // --------------------------------------------------------
 
-      if (hasInvalidInput)
+      if (!TryParseDouble(
+          _textBoxA.Text,
+          out _leftBound))
       {
-        _labelResult.ForeColor = Color.DarkRed;
-        _labelResult.Text = "Ошибка: некорректные числа в подсвеченных полях";
+        MarkInvalid(
+            _textBoxA,
+            true);
+
+        ShowError(
+            "некорректное значение a.");
+
         return;
       }
 
-      if (string.IsNullOrWhiteSpace(_textBoxFormula.Text))
+      // --------------------------------------------------------
+      // b
+      // --------------------------------------------------------
+
+      if (!TryParseDouble(
+          _textBoxB.Text,
+          out _rightBound))
       {
-        MarkInvalid(_textBoxFormula, true);
-        _labelResult.ForeColor = Color.DarkRed;
-        _labelResult.Text = "Ошибка: введите формулу";
+        MarkInvalid(
+            _textBoxB,
+            true);
+
+        ShowError(
+            "некорректное значение b.");
+
+        return;
+      }
+
+      // --------------------------------------------------------
+      // e
+      // --------------------------------------------------------
+
+      if (!TryParseDouble(
+          _textBoxE.Text,
+          out _precision))
+      {
+        MarkInvalid(
+            _textBoxE,
+            true);
+
+        ShowError(
+            "некорректное значение e.");
+
+        return;
+      }
+
+      // --------------------------------------------------------
+      // a < b
+      // --------------------------------------------------------
+
+      if (_leftBound >= _rightBound)
+      {
+        MarkInvalid(
+            _textBoxA,
+            true);
+
+        MarkInvalid(
+            _textBoxB,
+            true);
+
+        ShowError(
+            "должно выполняться a < b.");
+
+        return;
+      }
+
+      // --------------------------------------------------------
+      // e > 0
+      // --------------------------------------------------------
+
+      if (_precision <= 0)
+      {
+        MarkInvalid(
+            _textBoxE,
+            true);
+
+        ShowError(
+            "точность e должна быть больше 0.");
+
+        return;
+      }
+
+      // --------------------------------------------------------
+      // Формула
+      // --------------------------------------------------------
+
+      if (string.IsNullOrWhiteSpace(
+          _textBoxFormula.Text))
+      {
+        MarkInvalid(
+            _textBoxFormula,
+            true);
+
+        ShowError(
+            "введите формулу.");
+
         return;
       }
 
       try
       {
-        _parser = new FunctionParser(_textBoxFormula.Text);
-        _parser.Evaluate(_leftBound);
-        _parser.Evaluate(_rightBound);
+        _parser =
+            new FunctionParser(
+                _textBoxFormula.Text);
+
+        _parser.Evaluate(
+            _leftBound);
+
+        _parser.Evaluate(
+            _rightBound);
       }
       catch (Exception exception)
       {
-        MarkInvalid(_textBoxFormula, true);
-        _labelResult.ForeColor = Color.DarkRed;
-        _labelResult.Text = "Ошибка формулы: " + exception.Message;
+        MarkInvalid(
+            _textBoxFormula,
+            true);
+
+        ShowError(
+            "ошибка формулы: " +
+            exception.Message);
+
         return;
       }
 
-      _dichotomyResult = DichotomySolver.Solve(_parser.Evaluate, _leftBound, _rightBound, _precision);
+      // --------------------------------------------------------
+      // Метод дихотомии
+      // --------------------------------------------------------
+
+      _dichotomyResult =
+          DichotomySolver.Solve(
+              _parser.Evaluate,
+              _leftBound,
+              _rightBound,
+              _precision);
+
       ShowResult();
       UpdatePlot();
     }
 
+    // ============================================================
+    // АВТОМАТИЧЕСКИЙ РАСЧЁТ
+    // ============================================================
+
     private void TryAutoCalculate()
     {
-      bool isAValid = TryParseDouble(_textBoxA.Text, out _leftBound);
-      bool isBValid = TryParseDouble(_textBoxB.Text, out _rightBound);
-      bool isEValid = TryParseDouble(_textBoxE.Text, out _precision);
-      bool isFormulaValid = !string.IsNullOrWhiteSpace(_textBoxFormula.Text);
+      ResetFieldColors();
 
-      MarkInvalid(_textBoxA, _textBoxA.Text.Length > 0 && !isAValid);
-      MarkInvalid(_textBoxB, _textBoxB.Text.Length > 0 && !isBValid);
-      MarkInvalid(_textBoxE, _textBoxE.Text.Length > 0 && !isEValid);
+      // --------------------------------------------------------
+      // Пустые поля — ничего не показываем
+      // --------------------------------------------------------
 
-      if (!isAValid || !isBValid || !isEValid || !isFormulaValid)
+      if (string.IsNullOrWhiteSpace(
+              _textBoxA.Text) ||
+          string.IsNullOrWhiteSpace(
+              _textBoxB.Text) ||
+          string.IsNullOrWhiteSpace(
+              _textBoxE.Text) ||
+          string.IsNullOrWhiteSpace(
+              _textBoxFormula.Text))
       {
         _dichotomyResult = null;
         _parser = null;
+
+        _labelResult.ForeColor =
+            Color.DarkGreen;
+
+        _labelResult.Text =
+            "Результат";
+
+        ClearResultTable();
+        ShowResultTable();
+
         _formsPlot.Plot.Clear();
         _formsPlot.Refresh();
+
         return;
       }
 
-      try
+      // --------------------------------------------------------
+      // a
+      // --------------------------------------------------------
+
+      if (!TryParseDouble(
+          _textBoxA.Text,
+          out _leftBound))
       {
-        _parser = new FunctionParser(_textBoxFormula.Text);
-        MarkInvalid(_textBoxFormula, false);
-      }
-      catch
-      {
-        MarkInvalid(_textBoxFormula, true);
-        _parser = null;
-        _dichotomyResult = null;
-        _formsPlot.Plot.Clear();
-        _formsPlot.Refresh();
+        MarkInvalid(
+            _textBoxA,
+            true);
+
+        ShowError(
+            "некорректное значение a.");
+
         return;
       }
 
+      // --------------------------------------------------------
+      // b
+      // --------------------------------------------------------
+
+      if (!TryParseDouble(
+          _textBoxB.Text,
+          out _rightBound))
+      {
+        MarkInvalid(
+            _textBoxB,
+            true);
+
+        ShowError(
+            "некорректное значение b.");
+
+        return;
+      }
+
+      // --------------------------------------------------------
+      // e
+      // --------------------------------------------------------
+
+      if (!TryParseDouble(
+          _textBoxE.Text,
+          out _precision))
+      {
+        MarkInvalid(
+            _textBoxE,
+            true);
+
+        ShowError(
+            "некорректное значение e.");
+
+        return;
+      }
+
+      // --------------------------------------------------------
+      // a < b
+      // --------------------------------------------------------
+
+      if (_leftBound >= _rightBound)
+      {
+        MarkInvalid(
+            _textBoxA,
+            true);
+
+        MarkInvalid(
+            _textBoxB,
+            true);
+
+        ShowError(
+            "должно выполняться a < b.");
+
+        return;
+      }
+
+      // --------------------------------------------------------
+      // e > 0
+      // --------------------------------------------------------
+
+      if (_precision <= 0)
+      {
+        MarkInvalid(
+            _textBoxE,
+            true);
+
+        ShowError(
+            "точность e должна быть больше 0.");
+
+        return;
+      }
+
+      // --------------------------------------------------------
+      // Формула
+      // --------------------------------------------------------
+
       try
       {
-        _dichotomyResult = DichotomySolver.Solve(_parser.Evaluate, _leftBound, _rightBound, _precision);
+        _parser =
+            new FunctionParser(
+                _textBoxFormula.Text);
+
+        MarkInvalid(
+            _textBoxFormula,
+            false);
+      }
+      catch (Exception exception)
+      {
+        MarkInvalid(
+            _textBoxFormula,
+            true);
+
+        ShowError(
+            "ошибка формулы: " +
+            exception.Message);
+
+        return;
+      }
+
+      // --------------------------------------------------------
+      // Расчёт
+      // --------------------------------------------------------
+
+      try
+      {
+        _dichotomyResult =
+            DichotomySolver.Solve(
+                _parser.Evaluate,
+                _leftBound,
+                _rightBound,
+                _precision);
+
         ShowResult();
         UpdatePlot();
       }
-      catch
+      catch (Exception exception)
       {
         _dichotomyResult = null;
+
+        ShowError(
+            exception.Message);
       }
     }
+
+    // ============================================================
+    // ПОКАЗ РЕЗУЛЬТАТА
+    // ============================================================
 
     private void ShowResult()
     {
-      if (_dichotomyResult == null) return;
+      if (_dichotomyResult == null)
+        return;
+
+      // --------------------------------------------------------
+      // Ошибка метода
+      // --------------------------------------------------------
 
       if (!_dichotomyResult.Success)
       {
-        _labelResult.ForeColor = Color.DarkRed;
-        _labelResult.Text = "Ошибка: " + _dichotomyResult.Error;
+        _labelResult.ForeColor =
+            Color.DarkRed;
+
+        _labelResult.Text =
+            "Ошибка: " +
+            _dichotomyResult.Error;
+
+        ClearResultTable();
+
+        HideResultTable();
+
         return;
       }
 
-      _labelResult.ForeColor = Color.DarkGreen;
-      _labelResult.Text = string.Format(CultureInfo.InvariantCulture,
-          "Корень:   x = {0:F6}\r\nf(x)   = {1:F8}\r\nИтераций: {2}\r\ne      = {3}",
-          _dichotomyResult.Root,
-          _dichotomyResult.FunctionValueAtRoot,
-          _dichotomyResult.Iterations,
-          _precision);
+      // --------------------------------------------------------
+      // Успех
+      // --------------------------------------------------------
+
+      _labelResult.ForeColor =
+          Color.DarkGreen;
+
+      _labelResult.Text =
+          "Результат";
+
+      SetResultValues(
+          _dichotomyResult.Root.ToString(
+              "F6",
+              CultureInfo.InvariantCulture),
+
+          _dichotomyResult.FunctionValueAtRoot
+              .ToString(
+                  "F8",
+                  CultureInfo.InvariantCulture),
+
+          _dichotomyResult.Iterations
+              .ToString(
+                  CultureInfo.InvariantCulture),
+
+          _precision.ToString(
+              "G",
+              CultureInfo.InvariantCulture));
+
+      ShowResultTable();
 
       if (_dichotomyResult.HasDiscontinuity)
-        _labelResult.Text += "\r\n⚠ На интервале есть разрыв — проверьте результат!";
+      {
+        _labelResult.Text =
+            "Результат ⚠";
+      }
     }
 
-    private static bool TryParseDouble(string text, out double value)
+    // ============================================================
+    // ПАРСИНГ ЧИСЕЛ
+    // ============================================================
+
+    private static bool TryParseDouble(
+        string text,
+        out double value)
     {
-      text = (text ?? "").Trim().Replace(',', '.');
-      return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+      text =
+          (text ?? "")
+          .Trim()
+          .Replace(',', '.');
+
+      return double.TryParse(
+          text,
+          NumberStyles.Float,
+          CultureInfo.InvariantCulture,
+          out value);
     }
+
+    // ============================================================
+    // ПОСТРОИТЬ ГРАФИК
+    // ============================================================
+
+    private void BuildGraphOnly()
+    {
+      ResetFieldColors();
+
+      if (!TryParseDouble(
+          _textBoxA.Text,
+          out _leftBound))
+      {
+        MarkInvalid(
+            _textBoxA,
+            true);
+
+        ShowError(
+            "некорректное значение a.");
+
+        return;
+      }
+
+      if (!TryParseDouble(
+          _textBoxB.Text,
+          out _rightBound))
+      {
+        MarkInvalid(
+            _textBoxB,
+            true);
+
+        ShowError(
+            "некорректное значение b.");
+
+        return;
+      }
+
+      if (!TryParseDouble(
+          _textBoxE.Text,
+          out _precision))
+      {
+        MarkInvalid(
+            _textBoxE,
+            true);
+
+        ShowError(
+            "некорректное значение e.");
+
+        return;
+      }
+
+      if (_leftBound >= _rightBound)
+      {
+        MarkInvalid(
+            _textBoxA,
+            true);
+
+        MarkInvalid(
+            _textBoxB,
+            true);
+
+        ShowError(
+            "должно выполняться a < b.");
+
+        return;
+      }
+
+      if (_precision <= 0)
+      {
+        MarkInvalid(
+            _textBoxE,
+            true);
+
+        ShowError(
+            "точность e должна быть больше 0.");
+
+        return;
+      }
+
+      if (string.IsNullOrWhiteSpace(
+          _textBoxFormula.Text))
+      {
+        MarkInvalid(
+            _textBoxFormula,
+            true);
+
+        ShowError(
+            "введите формулу.");
+
+        return;
+      }
+
+      try
+      {
+        _parser =
+            new FunctionParser(
+                _textBoxFormula.Text);
+
+        MarkInvalid(
+            _textBoxFormula,
+            false);
+      }
+      catch (Exception exception)
+      {
+        MarkInvalid(
+            _textBoxFormula,
+            true);
+
+        ShowError(
+            "ошибка формулы: " +
+            exception.Message);
+
+        return;
+      }
+
+      UpdatePlot();
+    }
+
+    // ============================================================
+    // ГРАФИК
+    // ============================================================
 
     private void UpdatePlot()
     {
@@ -355,63 +1348,163 @@ namespace DichotomyApp
 
       if (_parser == null)
       {
-        _formsPlot.Plot.Title("График не построен");
+        _formsPlot.Plot.Title(
+            "График не построен");
+
         _formsPlot.Refresh();
+
         return;
       }
 
-      double margin = (_rightBound - _leftBound) * 0.5;
-      if (margin < 1e-9) margin = 1.0;
+      double margin =
+          (_rightBound - _leftBound) * 0.5;
 
-      double xMin = _leftBound - margin;
-      double xMax = _rightBound + margin;
+      if (margin < 1e-9)
+        margin = 1.0;
+
+      double xMin =
+          _leftBound - margin;
+
+      double xMax =
+          _rightBound + margin;
 
       const int sampleCount = 800;
-      double[] xs = new double[sampleCount + 1];
-      double[] ys = new double[sampleCount + 1];
 
-      for (int sampleIndex = 0; sampleIndex <= sampleCount; ++sampleIndex)
+      double[] xs =
+          new double[sampleCount + 1];
+
+      double[] ys =
+          new double[sampleCount + 1];
+
+      for (int i = 0;
+           i <= sampleCount;
+           i++)
       {
-        double x = xMin + (xMax - xMin) * sampleIndex / sampleCount;
-        xs[sampleIndex] = x;
-        try { ys[sampleIndex] = _parser.Evaluate(x); }
-        catch { ys[sampleIndex] = double.NaN; }
+        double x =
+            xMin +
+            (xMax - xMin) *
+            i /
+            sampleCount;
+
+        xs[i] = x;
+
+        try
+        {
+          double y =
+              _parser.Evaluate(x);
+
+          if (double.IsNaN(y) ||
+              double.IsInfinity(y))
+          {
+            ys[i] =
+                double.NaN;
+          }
+          else
+          {
+            ys[i] = y;
+          }
+        }
+        catch
+        {
+          ys[i] =
+              double.NaN;
+        }
       }
 
-      var scatter = _formsPlot.Plot.Add.Scatter(xs, ys);
-      scatter.Color = ScottPlot.Color.FromSDColor(System.Drawing.Color.SteelBlue);
+      var scatter =
+          _formsPlot.Plot.Add.Scatter(
+              xs,
+              ys);
+
+      scatter.Color =
+          ScottPlot.Color.FromSDColor(
+              Color.SteelBlue);
+
       scatter.LineWidth = 2;
       scatter.MarkerSize = 0;
 
-      var leftLine = _formsPlot.Plot.Add.VerticalLine(_leftBound);
-      leftLine.Color = ScottPlot.Color.FromSDColor(System.Drawing.Color.Orange).WithAlpha(0.6);
-      leftLine.LinePattern = ScottPlot.LinePattern.Dashed;
+      // --------------------------------------------------------
+      // a
+      // --------------------------------------------------------
 
-      var rightLine = _formsPlot.Plot.Add.VerticalLine(_rightBound);
-      rightLine.Color = ScottPlot.Color.FromSDColor(System.Drawing.Color.Orange).WithAlpha(0.6);
-      rightLine.LinePattern = ScottPlot.LinePattern.Dashed;
+      var leftLine =
+          _formsPlot.Plot.Add.VerticalLine(
+              _leftBound);
 
-      if (_dichotomyResult != null
-          && _dichotomyResult.FoundRight > _dichotomyResult.FoundLeft
-          && _dichotomyResult.FoundRight - _dichotomyResult.FoundLeft < (_rightBound - _leftBound) * 0.9)
+      leftLine.Color =
+          ScottPlot.Color
+              .FromSDColor(
+                  Color.Orange)
+              .WithAlpha(0.6);
+
+      leftLine.LinePattern =
+          ScottPlot.LinePattern.Dashed;
+
+      // --------------------------------------------------------
+      // b
+      // --------------------------------------------------------
+
+      var rightLine =
+          _formsPlot.Plot.Add.VerticalLine(
+              _rightBound);
+
+      rightLine.Color =
+          ScottPlot.Color
+              .FromSDColor(
+                  Color.Orange)
+              .WithAlpha(0.6);
+
+      rightLine.LinePattern =
+          ScottPlot.LinePattern.Dashed;
+
+      // --------------------------------------------------------
+      // Изоляционный интервал
+      // --------------------------------------------------------
+
+      if (_dichotomyResult != null &&
+          _dichotomyResult.FoundRight >
+          _dichotomyResult.FoundLeft &&
+          _dichotomyResult.FoundRight -
+          _dichotomyResult.FoundLeft <
+          (_rightBound -
+           _leftBound) * 0.9)
       {
-        var foundRange = _formsPlot.Plot.Add.HorizontalSpan(
-            _dichotomyResult.FoundLeft,
-            _dichotomyResult.FoundRight);
-        foundRange.FillColor = ScottPlot.Color.FromSDColor(System.Drawing.Color.Green).WithAlpha(0.2);
+        var foundRange =
+            _formsPlot.Plot.Add.HorizontalSpan(
+                _dichotomyResult.FoundLeft,
+                _dichotomyResult.FoundRight);
+
+        foundRange.FillColor =
+            ScottPlot.Color
+                .FromSDColor(
+                    Color.Green)
+                .WithAlpha(0.2);
       }
 
-      if (_dichotomyResult != null && _dichotomyResult.Success)
+      // --------------------------------------------------------
+      // Корень
+      // --------------------------------------------------------
+
+      if (_dichotomyResult != null &&
+          _dichotomyResult.Success)
       {
-        var rootMarker = _formsPlot.Plot.Add.Marker(
-            _dichotomyResult.Root,
-            _dichotomyResult.FunctionValueAtRoot);
-        rootMarker.Color = ScottPlot.Color.FromSDColor(System.Drawing.Color.Red);
+        var rootMarker =
+            _formsPlot.Plot.Add.Marker(
+                _dichotomyResult.Root,
+                _dichotomyResult.FunctionValueAtRoot);
+
+        rootMarker.Color =
+            ScottPlot.Color.FromSDColor(
+                Color.Red);
+
         rootMarker.Size = 12;
       }
 
-      _formsPlot.Plot.Title($"f(x) = {_textBoxFormula.Text}");
+      _formsPlot.Plot.Title(
+          $"f(x) = {_textBoxFormula.Text}");
+
       _formsPlot.Plot.Axes.AutoScale();
+
       _formsPlot.Refresh();
     }
   }

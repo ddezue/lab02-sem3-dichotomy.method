@@ -1,5 +1,4 @@
-﻿using dichotomy.method;
-using System;
+﻿using System;
 using System.Windows.Forms;
 
 namespace DichotomyApp
