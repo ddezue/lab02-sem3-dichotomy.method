@@ -7,17 +7,12 @@ namespace DichotomyApp
   /// Парсер и вычислитель выражений. Строит AST один раз в конструкторе,
   /// Evaluate() — обход дерева (быстро).
   ///
-  /// Грамматика (от слабого приоритета к сильному):
+  /// Грамматика:
   ///   expr    := term (('+' | '-') term)*
   ///   term    := unary (('*' | '/') unary)*
   ///   unary   := ('+' | '-') unary | power
   ///   power   := primary ('^' unary)?
   ///   primary := number | 'x' | 'pi' | 'e' | func '(' expr ')' | '(' expr ')'
-  ///
-  /// Благодаря такой расстановке:
-  ///   -x^2   ==  -(x^2)   (а не (-x)^2)
-  ///   2^-3   ==  2^(-3)
-  ///   x^2^3  ==  x^(2^3)  (право-ассоциативно)
   /// </summary>
   public class FunctionParser
   {
@@ -39,7 +34,8 @@ namespace DichotomyApp
     {
       private readonly bool _isNegation;
       private readonly Node _operand;
-      public UnaryNode(bool isNegation, Node operand) { _isNegation = isNegation; _operand = operand; }
+      public UnaryNode(bool isNegation, Node operand)
+      { _isNegation = isNegation; _operand = operand; }
       public override double Eval(double x)
       {
         double value = _operand.Eval(x);
@@ -53,9 +49,7 @@ namespace DichotomyApp
       private readonly Node _leftNode, _rightNode;
       public BinaryNode(char op, Node leftNode, Node rightNode)
       {
-        _operator = op;
-        _leftNode = leftNode;
-        _rightNode = rightNode;
+        _operator = op; _leftNode = leftNode; _rightNode = rightNode;
       }
       public override double Eval(double x)
       {
@@ -80,10 +74,7 @@ namespace DichotomyApp
       private readonly string _functionName;
       private readonly Node _argument;
       public FuncNode(string functionName, Node argument)
-      {
-        _functionName = functionName;
-        _argument = argument;
-      }
+      { _functionName = functionName; _argument = argument; }
       public override double Eval(double x)
       {
         double value = _argument.Eval(x);
@@ -135,15 +126,9 @@ namespace DichotomyApp
       {
         char currentChar = _expression[_position];
         if (currentChar == '+')
-        {
-          ++_position;
-          leftNode = new BinaryNode('+', leftNode, ParseTerm());
-        }
+        { ++_position; leftNode = new BinaryNode('+', leftNode, ParseTerm()); }
         else if (currentChar == '-')
-        {
-          ++_position;
-          leftNode = new BinaryNode('-', leftNode, ParseTerm());
-        }
+        { ++_position; leftNode = new BinaryNode('-', leftNode, ParseTerm()); }
         else break;
       }
       return leftNode;
@@ -157,15 +142,9 @@ namespace DichotomyApp
       {
         char currentChar = _expression[_position];
         if (currentChar == '*')
-        {
-          ++_position;
-          leftNode = new BinaryNode('*', leftNode, ParseUnary());
-        }
+        { ++_position; leftNode = new BinaryNode('*', leftNode, ParseUnary()); }
         else if (currentChar == '/')
-        {
-          ++_position;
-          leftNode = new BinaryNode('/', leftNode, ParseUnary());
-        }
+        { ++_position; leftNode = new BinaryNode('/', leftNode, ParseUnary()); }
         else break;
       }
       return leftNode;
@@ -175,20 +154,13 @@ namespace DichotomyApp
     private Node ParseUnary()
     {
       if (_position < _expression.Length && _expression[_position] == '+')
-      {
-        ++_position;
-        return ParseUnary();
-      }
+      { ++_position; return ParseUnary(); }
       if (_position < _expression.Length && _expression[_position] == '-')
-      {
-        ++_position;
-        return new UnaryNode(true, ParseUnary());
-      }
+      { ++_position; return new UnaryNode(true, ParseUnary()); }
       return ParsePower();
     }
 
     // power := primary ('^' unary)?
-    // Правая часть '^' — unary, чтобы поддержать 2^-3, 2^-(x+1) и т.п.
     private Node ParsePower()
     {
       Node baseNode = ParsePrimary();
@@ -230,9 +202,8 @@ namespace DichotomyApp
       int numberStart = _position;
       while (_position < _expression.Length &&
              (char.IsDigit(_expression[_position]) || _expression[_position] == '.'))
-      {
-        ++_position;
-      }
+      { ++_position; }
+
       string numberText = _expression.Substring(numberStart, _position - numberStart);
       if (!double.TryParse(numberText, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsedValue))
         throw new FormatException($"Некорректное число '{numberText}'");
@@ -243,9 +214,8 @@ namespace DichotomyApp
     {
       int identifierStart = _position;
       while (_position < _expression.Length && char.IsLetter(_expression[_position]))
-      {
-        ++_position;
-      }
+      { ++_position; }
+
       string identifierName = _expression.Substring(identifierStart, _position - identifierStart);
 
       if (_position < _expression.Length && _expression[_position] == '(')

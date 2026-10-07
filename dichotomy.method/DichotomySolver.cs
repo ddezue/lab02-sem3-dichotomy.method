@@ -18,316 +18,231 @@ namespace DichotomyApp
   {
     public static DichotomyResult Solve(
         Func<double, double> function,
-        double a,
-        double b,
-        double eps,
+        double a, double b, double eps,
         int signScanSegments = 400)
     {
       var result = new DichotomyResult();
 
       if (double.IsNaN(a) || double.IsNaN(b) || double.IsNaN(eps))
+      { result.Error = "Входные значения не числа"; return result; }
+
+      if (a >= b) { result.Error = "Требуется a < b"; return result; }
+      if (eps <= 0) { result.Error = "Точность e должна быть > 0"; return result; }
+      if (eps >= (b - a)) { result.Error = "Точность e больше длины интервала"; return result; }
+
+      double fa, fb;
+      if (!TryEvaluate(function, a, out fa))
+      { result.Error = "f(a) не вычислима"; return result; }
+      if (!TryEvaluate(function, b, out fb))
+      { result.Error = "f(b) не вычислима"; return result; }
+
+      // ===== Границы, попавшие точно в корень =====
+      if (Math.Abs(fa) < 1e-15)
       {
-        result.Error = "Входные значения не числа";
+        result.Root = a;
+        result.FunctionValueAtRoot = fa;
+        result.Success = true;
+        result.Iterations = 0;
+        result.FoundLeft = result.FoundRight = a;
+        return result;
+      }
+      if (Math.Abs(fb) < 1e-15)
+      {
+        result.Root = b;
+        result.FunctionValueAtRoot = fb;
+        result.Success = true;
+        result.Iterations = 0;
+        result.FoundLeft = result.FoundRight = b;
         return result;
       }
 
-      if (a >= b)
-      {
-        result.Error = "Требуется a < b";
-        return result;
-      }
-
-      if (eps <= 0)
-      {
-        result.Error = "Точность e должна быть > 0";
-        return result;
-      }
-
-      if (eps >= (b - a))
-      {
-        result.Error = "Точность e больше длины интервала";
-        return result;
-      }
-
-      // ===== 1. Поиск интервала изоляции =====
-      var signChanges = new List<(double l, double r)>();
+      // ===== 1. Строгое сканирование смены знака =====
+      // Корень добавляется в кандидаты ТОЛЬКО когда f(x_i) * f(x_{i+1}) < 0.
+      // Никаких "|f| маленькое — считаем корнем" — это противоречит дихотомии.
+      var candidates = new List<(double l, double r)>();
       double step = (b - a) / signScanSegments;
-
       double previousX = a;
-      double previousValue;
+      double previousValue = fa;
+      bool hadDiscontinuity = false;
 
-      if (!TryEvaluate(function, a, out previousValue)
-          || double.IsNaN(previousValue)
-          || double.IsInfinity(previousValue))
+      for (int i = 1; i <= signScanSegments; ++i)
       {
-        result.Error = "f(a) не вычислима";
-        return result;
-      }
-
-      // Если левый конец уже является корнем
-      if (Math.Abs(previousValue) < 1e-15)
-      {
-        signChanges.Add((a, a));
-      }
-
-      for (int scanIndex = 1; scanIndex <= signScanSegments; ++scanIndex)
-      {
-        double currentX =
-            (scanIndex == signScanSegments)
-                ? b
-                : a + scanIndex * step;
-
+        double currentX = (i == signScanSegments) ? b : a + i * step;
         double currentValue;
 
-        if (!TryEvaluate(function, currentX, out currentValue)
-            || double.IsNaN(currentValue)
-            || double.IsInfinity(currentValue))
+        if (!TryEvaluate(function, currentX, out currentValue))
         {
-          result.HasDiscontinuity = true;
-
+          hadDiscontinuity = true;
           previousX = currentX;
           previousValue = double.NaN;
-
           continue;
         }
 
-        // Текущая точка является корнем
-        if (Math.Abs(currentValue) < 1e-15)
+        if (!double.IsNaN(previousValue) && previousValue * currentValue < 0)
         {
-          bool alreadyFound = false;
-
-          foreach (var interval in signChanges)
-          {
-            if (Math.Abs(interval.l - currentX) < 1e-15 &&
-                Math.Abs(interval.r - currentX) < 1e-15)
-            {
-              alreadyFound = true;
-              break;
-            }
-          }
-
-          if (!alreadyFound)
-          {
-            signChanges.Add((currentX, currentX));
-          }
-        }
-        else if (!double.IsNaN(previousValue)
-                 && !double.IsInfinity(previousValue))
-        {
-          if (previousValue * currentValue < 0)
-          {
-            signChanges.Add((previousX, currentX));
-          }
+          candidates.Add((previousX, currentX));
         }
 
         previousX = currentX;
         previousValue = currentValue;
       }
 
-      if (signChanges.Count == 0)
+      if (candidates.Count == 0)
       {
-        if (result.HasDiscontinuity)
-        {
-          result.Error =
-              "На интервале есть разрыв, но корень не обнаружен.";
-        }
+        result.Error = hadDiscontinuity
+          ? "На интервале есть разрыв, но корень не обнаружен."
+          : "Корень не обнаружен: функция не меняет знак на заданном интервале.";
+        return result;
+      }
+
+      // ===== 2. Отсеиваем полюса =====
+      var realRoots = new List<(double l, double r)>();
+      foreach (var c in candidates)
+      {
+        double rl, rr, rEst;
+        if (ProbeCandidate(function, c.l, c.r, out rl, out rr, out rEst))
+          realRoots.Add((rl, rr));
         else
-        {
-          result.Error =
-              "Корень не обнаружен: функция не меняет знак на заданном интервале.";
-        }
-
-        return result;
+          hadDiscontinuity = true;
       }
 
-      if (signChanges.Count > 1)
+      if (realRoots.Count == 0)
       {
-        result.Error =
-            $"У вас несколько корней на выбранном интервале ({signChanges.Count} шт.). Уточните [a,b].";
-
+        result.Error = "На интервале найден разрыв (полюс), а не корень функции. f(x) не обращается в ноль.";
         return result;
       }
 
-      double left = signChanges[0].l;
-      double right = signChanges[0].r;
-
-      result.FoundLeft = left;
-      result.FoundRight = right;
-
-      // Если корень уже точно найден в точке
-      if (Math.Abs(right - left) < 1e-15)
+      if (realRoots.Count > 1)
       {
-        result.Root = left;
-
-        if (!TryEvaluate(
-                function,
-                left,
-                out result.FunctionValueAtRoot))
-        {
-          result.Error = "f(left) не вычислима";
-          return result;
-        }
-
-        if (Math.Abs(result.FunctionValueAtRoot) > 1e-6)
-        {
-          result.HasDiscontinuity = true;
-          result.Error = "На интервале полюс, а не корень";
-          return result;
-        }
-
-        result.Success = true;
-        result.Iterations = 0;
+        result.Error = $"У вас несколько корней на выбранном интервале ({realRoots.Count} шт.). Уточните [a,b].";
         return result;
       }
 
-      // ===== 2. Метод половинного деления =====
+      // ===== 3. Уточнение корня бисекцией =====
+      double left = realRoots[0].l;
+      double right = realRoots[0].r;
       double leftValue;
-
       if (!TryEvaluate(function, left, out leftValue))
+      { result.Error = "f(left) не вычислима"; return result; }
+
+      int iter = 0;
+      const int maxIter = 10000;
+
+      while ((right - left) > eps && iter < maxIter)
       {
-        result.Error = "f(left) не вычислима";
-        return result;
-      }
+        ++iter;
+        double mid = left + (right - left) * 0.5;
+        double midValue;
 
-      int iterationCount = 0;
-      const int maxIterations = 10000;
-
-      while ((right - left) > eps && iterationCount < maxIterations)
-      {
-        ++iterationCount;
-
-        double middle = left + (right - left) * 0.5;
-
-        double middleValue;
-
-        if (!TryEvaluate(function, middle, out middleValue)
-            || double.IsNaN(middleValue)
-            || double.IsInfinity(middleValue))
+        if (!TryEvaluate(function, mid, out midValue))
         {
           result.HasDiscontinuity = true;
-          result.Error =
-              "Функция не вычислима внутри интервала. Возможно, присутствует разрыв.";
-
+          result.Error = "Функция не вычислима внутри интервала. Возможно, присутствует разрыв.";
           return result;
         }
 
-        if (Math.Abs(middleValue) < 1e-15)
+        // Точное попадание в ноль — это законный выход (середина совпала с корнем).
+        if (Math.Abs(midValue) < 1e-15)
         {
-          left = right = middle;
+          left = right = mid;
           break;
         }
 
-        if (leftValue * middleValue < 0)
-        {
-          right = middle;
-        }
+        if (leftValue * midValue < 0)
+          right = mid;
         else
         {
-          left = middle;
-          leftValue = middleValue;
+          left = mid;
+          leftValue = midValue;
         }
       }
 
-      if (iterationCount >= maxIterations)
-      {
-        result.Error =
-            "Превышено максимальное число итераций";
-        return result;
-      }
+      if (iter >= maxIter)
+      { result.Error = "Превышено максимальное число итераций"; return result; }
 
-      double foundRoot = left + (right - left) * 0.5;
-
-      double functionValueAtRoot;
-
-      if (!TryEvaluate(function, foundRoot, out functionValueAtRoot))
+      double root = left + (right - left) * 0.5;
+      double fRoot;
+      if (!TryEvaluate(function, root, out fRoot))
       {
         result.HasDiscontinuity = true;
-        result.Error =
-            "На интервале полюс, а не корень";
+        result.Error = "На интервале полюс, а не корень";
         return result;
       }
 
-      result.Root = foundRoot;
-      result.FunctionValueAtRoot = functionValueAtRoot;
-      result.Iterations = iterationCount;
-
-      // ===== 3. Проверка результата =====
-      //
-      // Раньше здесь было `|f(root)| > scale * 1e-3`, где
-      // scale = max(|f(a)|, |f(b)|). Это ложно отбраковывало
-      // легитимные корни полиномов с заметной производной:
-      // после сходимости по x на eps расстояние до истинного
-      // корня <= eps/2, а значит |f(root)| <= |f'| * eps / 2,
-      // что для f'(root)=4 и eps=1e-4 даёт 2e-4 — заведомо
-      // больше старого порога (2e-5).
-      //
-      // Теперь оцениваем |f'| по секущей через концы интервала
-      // изоляции и разрешаем |f(root)| вплоть до |f'| * eps
-      // с 10-кратным запасом.
-      double absoluteRootValue = Math.Abs(functionValueAtRoot);
-
-      if (double.IsNaN(absoluteRootValue)
-          || double.IsInfinity(absoluteRootValue))
-      {
-        result.Success = false;
-        result.HasDiscontinuity = true;
-        result.Error =
-            "На интервале найден разрыв (полюс), а не корень функции. f(x) не обращается в ноль.";
-        return result;
-      }
-
-      double firstLeftValue;
-      double firstRightValue;
-
-      if (TryEvaluate(function, signChanges[0].l, out firstLeftValue) &&
-          TryEvaluate(function, signChanges[0].r, out firstRightValue))
-      {
-        double intervalWidth = signChanges[0].r - signChanges[0].l;
-        if (intervalWidth < 1e-15) intervalWidth = 1e-15;
-
-        double derivativeEstimate =
-            Math.Abs(firstRightValue - firstLeftValue) / intervalWidth;
-
-        double expectedMaxRootValue = derivativeEstimate * eps * 10.0;
-
-        if (expectedMaxRootValue < 1e-12)
-          expectedMaxRootValue = 1e-12;
-
-        if (absoluteRootValue > expectedMaxRootValue)
-        {
-          result.Success = false;
-          result.HasDiscontinuity = true;
-          result.Error =
-              "На интервале найден разрыв (полюс), а не корень функции. f(x) не обращается в ноль.";
-          return result;
-        }
-      }
-
+      result.Root = root;
+      result.FunctionValueAtRoot = fRoot;
+      result.Iterations = iter;
+      result.FoundLeft = realRoots[0].l;
+      result.FoundRight = realRoots[0].r;
       result.Success = true;
       return result;
     }
 
-    private static bool TryEvaluate(
-        Func<double, double> function,
-        double x,
-        out double value)
+    /// <summary>
+    /// Различает корень и полюс. Возвращает true, если это корень.
+    /// Корнем считается ситуация, когда |f| в середине интервала
+    /// становится МЕНЬШЕ, чем на исходных концах (для полюса — больше).
+    /// </summary>
+    private static bool ProbeCandidate(
+        Func<double, double> f,
+        double l, double r,
+        out double refinedLeft, out double refinedRight,
+        out double rootEstimate)
+    {
+      refinedLeft = l; refinedRight = r; rootEstimate = (l + r) * 0.5;
+
+      double fl, fr;
+      if (!TryEvaluate(f, l, out fl)) return false;
+      if (!TryEvaluate(f, r, out fr)) return false;
+
+      // Смена знака обязательна (мы её уже проверили при сканировании, но на всякий случай).
+      if (Math.Sign(fl) == Math.Sign(fr)) return false;
+
+      double left = l, right = r, leftValue = fl;
+      double minAbsMid = double.MaxValue;
+      const int probeIter = 60;
+
+      for (int i = 0; i < probeIter; i++)
+      {
+        double mid = left + (right - left) * 0.5;
+        double midVal;
+        if (!TryEvaluate(f, mid, out midVal)) return false;
+
+        double absMid = Math.Abs(midVal);
+        if (absMid < minAbsMid) minAbsMid = absMid;
+
+        if (leftValue * midVal < 0)
+          right = mid;
+        else
+        {
+          left = mid;
+          leftValue = midVal;
+        }
+
+        if (right - left < 1e-15) break;
+      }
+
+      double minEnd = Math.Min(Math.Abs(fl), Math.Abs(fr));
+      if (minEnd < 1e-15) minEnd = 1e-15;
+
+      // Для полюса |f| в середине РАСТЁТ, для корня — ПАДАЕТ.
+      if (minAbsMid > minEnd) return false;
+
+      refinedLeft = left;
+      refinedRight = right;
+      rootEstimate = left + (right - left) * 0.5;
+      return true;
+    }
+
+    private static bool TryEvaluate(Func<double, double> f, double x, out double v)
     {
       try
       {
-        value = function(x);
-
-        if (double.IsNaN(value) || double.IsInfinity(value))
-        {
-          return false;
-        }
-
+        v = f(x);
+        if (double.IsNaN(v) || double.IsInfinity(v)) return false;
         return true;
       }
-      catch
-      {
-        value = double.NaN;
-        return false;
-      }
+      catch { v = double.NaN; return false; }
     }
   }
 }
