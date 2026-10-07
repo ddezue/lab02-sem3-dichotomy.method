@@ -157,8 +157,6 @@ namespace DichotomyApp
             Padding = new Padding(0)
           };
 
-      // Ширина первой колонки достаточная
-      // для "Точность e"
       _leftPanel.ColumnStyles.Add(
           new ColumnStyle(
               SizeType.Absolute,
@@ -198,19 +196,19 @@ namespace DichotomyApp
               SizeType.Absolute,
               40));
 
-      // небольшой отступ
+      // отступ
       _leftPanel.RowStyles.Add(
           new RowStyle(
               SizeType.Absolute,
               10));
 
-      // заголовок
+      // заголовок результата — увеличено для многострочного текста
       _leftPanel.RowStyles.Add(
           new RowStyle(
               SizeType.Absolute,
-              32));
+              68));
 
-      // результат
+      // таблица результата
       _leftPanel.RowStyles.Add(
           new RowStyle(
               SizeType.Absolute,
@@ -360,6 +358,8 @@ namespace DichotomyApp
 
             Dock = DockStyle.Fill,
 
+            AutoSize = false,
+
             Font = new Font(
                   "Segoe UI",
                   10F,
@@ -370,6 +370,9 @@ namespace DichotomyApp
 
             TextAlign =
                   ContentAlignment.MiddleLeft,
+
+            Padding =
+                  new Padding(0, 4, 0, 4),
 
             Margin =
                   new Padding(0)
@@ -484,7 +487,6 @@ namespace DichotomyApp
                 29));
       }
 
-      // Корень
       table.Controls.Add(
           CreateResultNameLabel("Корень"),
           0,
@@ -498,7 +500,6 @@ namespace DichotomyApp
           1,
           0);
 
-      // f(x)
       table.Controls.Add(
           CreateResultNameLabel("f(x)"),
           0,
@@ -512,7 +513,6 @@ namespace DichotomyApp
           1,
           1);
 
-      // Итерации
       table.Controls.Add(
           CreateResultNameLabel("Итераций"),
           0,
@@ -526,7 +526,6 @@ namespace DichotomyApp
           1,
           2);
 
-      // Точность
       table.Controls.Add(
           CreateResultNameLabel("Точность e"),
           0,
@@ -807,10 +806,6 @@ namespace DichotomyApp
     {
       ResetFieldColors();
 
-      // --------------------------------------------------------
-      // a
-      // --------------------------------------------------------
-
       if (!TryParseDouble(
           _textBoxA.Text,
           out _leftBound))
@@ -824,10 +819,6 @@ namespace DichotomyApp
 
         return;
       }
-
-      // --------------------------------------------------------
-      // b
-      // --------------------------------------------------------
 
       if (!TryParseDouble(
           _textBoxB.Text,
@@ -843,10 +834,6 @@ namespace DichotomyApp
         return;
       }
 
-      // --------------------------------------------------------
-      // e
-      // --------------------------------------------------------
-
       if (!TryParseDouble(
           _textBoxE.Text,
           out _precision))
@@ -860,10 +847,6 @@ namespace DichotomyApp
 
         return;
       }
-
-      // --------------------------------------------------------
-      // a < b
-      // --------------------------------------------------------
 
       if (_leftBound >= _rightBound)
       {
@@ -881,10 +864,6 @@ namespace DichotomyApp
         return;
       }
 
-      // --------------------------------------------------------
-      // e > 0
-      // --------------------------------------------------------
-
       if (_precision <= 0)
       {
         MarkInvalid(
@@ -896,10 +875,6 @@ namespace DichotomyApp
 
         return;
       }
-
-      // --------------------------------------------------------
-      // Формула
-      // --------------------------------------------------------
 
       if (string.IsNullOrWhiteSpace(
           _textBoxFormula.Text))
@@ -939,10 +914,6 @@ namespace DichotomyApp
         return;
       }
 
-      // --------------------------------------------------------
-      // Метод дихотомии
-      // --------------------------------------------------------
-
       _dichotomyResult =
           DichotomySolver.Solve(
               _parser.Evaluate,
@@ -961,10 +932,6 @@ namespace DichotomyApp
     private void TryAutoCalculate()
     {
       ResetFieldColors();
-
-      // --------------------------------------------------------
-      // Пустые поля — ничего не показываем
-      // --------------------------------------------------------
 
       if (string.IsNullOrWhiteSpace(
               _textBoxA.Text) ||
@@ -993,10 +960,6 @@ namespace DichotomyApp
         return;
       }
 
-      // --------------------------------------------------------
-      // a
-      // --------------------------------------------------------
-
       if (!TryParseDouble(
           _textBoxA.Text,
           out _leftBound))
@@ -1010,10 +973,6 @@ namespace DichotomyApp
 
         return;
       }
-
-      // --------------------------------------------------------
-      // b
-      // --------------------------------------------------------
 
       if (!TryParseDouble(
           _textBoxB.Text,
@@ -1029,10 +988,6 @@ namespace DichotomyApp
         return;
       }
 
-      // --------------------------------------------------------
-      // e
-      // --------------------------------------------------------
-
       if (!TryParseDouble(
           _textBoxE.Text,
           out _precision))
@@ -1046,10 +1001,6 @@ namespace DichotomyApp
 
         return;
       }
-
-      // --------------------------------------------------------
-      // a < b
-      // --------------------------------------------------------
 
       if (_leftBound >= _rightBound)
       {
@@ -1067,10 +1018,6 @@ namespace DichotomyApp
         return;
       }
 
-      // --------------------------------------------------------
-      // e > 0
-      // --------------------------------------------------------
-
       if (_precision <= 0)
       {
         MarkInvalid(
@@ -1082,10 +1029,6 @@ namespace DichotomyApp
 
         return;
       }
-
-      // --------------------------------------------------------
-      // Формула
-      // --------------------------------------------------------
 
       try
       {
@@ -1109,10 +1052,6 @@ namespace DichotomyApp
 
         return;
       }
-
-      // --------------------------------------------------------
-      // Расчёт
-      // --------------------------------------------------------
 
       try
       {
@@ -1144,10 +1083,6 @@ namespace DichotomyApp
       if (_dichotomyResult == null)
         return;
 
-      // --------------------------------------------------------
-      // Ошибка метода
-      // --------------------------------------------------------
-
       if (!_dichotomyResult.Success)
       {
         _labelResult.ForeColor =
@@ -1163,10 +1098,6 @@ namespace DichotomyApp
 
         return;
       }
-
-      // --------------------------------------------------------
-      // Успех
-      // --------------------------------------------------------
 
       _labelResult.ForeColor =
           Color.DarkGreen;
@@ -1408,6 +1339,62 @@ namespace DichotomyApp
         {
           ys[i] =
               double.NaN;
+        }
+      }
+
+      // ========================================================
+      // РАЗРЫВ ЛИНИИ В ТОЧКАХ СКАЧКА
+      // ========================================================
+      //
+      // ScottPlot рисует одну непрерывную линию по всем точкам
+      // массива. Если функция уходит в ±∞ (полюс), между соседними
+      // сэмплами получается "вертикальная соединялка". Вставляем
+      // NaN там, где скачок |Δy| аномально большой — линия рвётся.
+
+      double[] deltas = new double[sampleCount];
+      int deltaCount = 0;
+
+      for (int i = 1; i <= sampleCount; i++)
+      {
+        if (!double.IsNaN(ys[i]) && !double.IsNaN(ys[i - 1]))
+        {
+          deltas[deltaCount++] = Math.Abs(ys[i] - ys[i - 1]);
+        }
+      }
+
+      if (deltaCount > 0)
+      {
+        Array.Sort(deltas, 0, deltaCount);
+
+        double medianDelta = deltas[deltaCount / 2];
+
+        double maxAbsY = 0;
+        for (int i = 0; i <= sampleCount; i++)
+        {
+          if (!double.IsNaN(ys[i]) && !double.IsInfinity(ys[i]))
+          {
+            double a = Math.Abs(ys[i]);
+            if (a > maxAbsY) maxAbsY = a;
+          }
+        }
+
+        double jumpThreshold = Math.Max(
+            medianDelta * 20.0,
+            maxAbsY * 0.5);
+
+        if (jumpThreshold < 1e-9) jumpThreshold = 1e-9;
+
+        for (int i = 1; i <= sampleCount; i++)
+        {
+          if (double.IsNaN(ys[i]) || double.IsNaN(ys[i - 1]))
+            continue;
+
+          double jump = Math.Abs(ys[i] - ys[i - 1]);
+
+          if (jump > jumpThreshold)
+          {
+            ys[i] = double.NaN;
+          }
         }
       }
 
