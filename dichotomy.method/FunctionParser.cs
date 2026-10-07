@@ -6,6 +6,18 @@ namespace DichotomyApp
   /// <summary>
   /// Парсер и вычислитель выражений. Строит AST один раз в конструкторе,
   /// Evaluate() — обход дерева (быстро).
+  ///
+  /// Грамматика (от слабого приоритета к сильному):
+  ///   expr    := term (('+' | '-') term)*
+  ///   term    := unary (('*' | '/') unary)*
+  ///   unary   := ('+' | '-') unary | power
+  ///   power   := primary ('^' unary)?
+  ///   primary := number | 'x' | 'pi' | 'e' | func '(' expr ')' | '(' expr ')'
+  ///
+  /// Благодаря такой расстановке:
+  ///   -x^2   ==  -(x^2)   (а не (-x)^2)
+  ///   2^-3   ==  2^(-3)
+  ///   x^2^3  ==  x^(2^3)  (право-ассоциативно)
   /// </summary>
   public class FunctionParser
   {
@@ -137,41 +149,29 @@ namespace DichotomyApp
       return leftNode;
     }
 
-    // term := factor (('*' | '/') factor)*
+    // term := unary (('*' | '/') unary)*
     private Node ParseTerm()
     {
-      Node leftNode = ParseFactor();
+      Node leftNode = ParseUnary();
       while (_position < _expression.Length)
       {
         char currentChar = _expression[_position];
         if (currentChar == '*')
         {
           ++_position;
-          leftNode = new BinaryNode('*', leftNode, ParseFactor());
+          leftNode = new BinaryNode('*', leftNode, ParseUnary());
         }
         else if (currentChar == '/')
         {
           ++_position;
-          leftNode = new BinaryNode('/', leftNode, ParseFactor());
+          leftNode = new BinaryNode('/', leftNode, ParseUnary());
         }
         else break;
       }
       return leftNode;
     }
 
-    // factor := unary ('^' factor)?
-    private Node ParseFactor()
-    {
-      Node baseNode = ParseUnary();
-      if (_position < _expression.Length && _expression[_position] == '^')
-      {
-        ++_position;
-        Node exponentNode = ParseFactor();
-        return new BinaryNode('^', baseNode, exponentNode);
-      }
-      return baseNode;
-    }
-
+    // unary := ('+' | '-') unary | power
     private Node ParseUnary()
     {
       if (_position < _expression.Length && _expression[_position] == '+')
@@ -184,7 +184,21 @@ namespace DichotomyApp
         ++_position;
         return new UnaryNode(true, ParseUnary());
       }
-      return ParsePrimary();
+      return ParsePower();
+    }
+
+    // power := primary ('^' unary)?
+    // Правая часть '^' — unary, чтобы поддержать 2^-3, 2^-(x+1) и т.п.
+    private Node ParsePower()
+    {
+      Node baseNode = ParsePrimary();
+      if (_position < _expression.Length && _expression[_position] == '^')
+      {
+        ++_position;
+        Node exponentNode = ParseUnary();
+        return new BinaryNode('^', baseNode, exponentNode);
+      }
+      return baseNode;
     }
 
     private Node ParsePrimary()
